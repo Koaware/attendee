@@ -19,12 +19,13 @@ from django.views.generic import ListView
 
 from accounts.models import User, UserRole
 
-from .bots_api_utils import BotCreationSource, create_bot, create_webhook_subscription
+from .bots_api_utils import BotCreationSource, create_bot, create_webhook_subscription, send_sync_command
 from .launch_bot_utils import launch_bot
 from .models import (
     ApiKey,
     Bot,
     BotEvent,
+    BotEventManager,
     BotEventSubTypes,
     BotEventTypes,
     BotStates,
@@ -862,6 +863,7 @@ class ProjectBotDetailView(LoginRequiredMixin, ProjectUrlContextMixin, View):
                 "bot": bot,
                 "BotStates": BotStates,
                 "SessionTypes": SessionTypes,
+                "leaveable_states": BotEventManager.VALID_TRANSITIONS[BotEventTypes.LEAVE_REQUESTED]["from"],
                 "webhook_delivery_attempts": webhook_delivery_attempts,
                 "chat_messages": chat_messages,
                 "participants": participants,
@@ -1144,6 +1146,31 @@ class ResendWebhookDeliveryAttemptView(LoginRequiredMixin, View):
             '<span class="badge bg-warning">Pending</span>',
             content_type="text/html",
         )
+
+
+class BotLeaveProjectView(LoginRequiredMixin, View):
+    def post(self, request, object_id, bot_object_id):
+        project = get_project_for_user(user=request.user, project_object_id=object_id)
+        bot = None
+        try:
+            bot = Bot.objects.get(object_id=bot_object_id, project=project)
+            BotEventManager.create_event(
+                bot,
+                BotEventTypes.LEAVE_REQUESTED,
+                event_sub_type=BotEventSubTypes.LEAVE_REQUESTED_USER_REQUESTED,
+            )
+            send_sync_command(bot)
+        except (ValidationError, Bot.DoesNotExist):
+            pass
+
+        if bot and bot.session_type == SessionTypes.APP_SESSION:
+            redirect_url = reverse("projects:project-app-session-detail", args=[object_id, bot_object_id])
+        else:
+            redirect_url = reverse("projects:project-bot-detail", args=[object_id, bot_object_id])
+
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = redirect_url
+        return response
 
 
 class ProjectUsageView(AdminRequiredMixin, ProjectUrlContextMixin, View):

@@ -93,6 +93,8 @@ class PerParticipantStreamingAudioInputManager:
             return None
 
         deepgram_credentials = deepgram_credentials_record.get_credentials()
+        if not deepgram_credentials:
+            return None
         return deepgram_credentials["api_key"]
 
     def get_kyutai_server_url_and_api_key(self):

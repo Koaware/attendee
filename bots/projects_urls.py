@@ -42,6 +42,11 @@ urlpatterns = [
         name="project-app-session-detail",
     ),
     path(
+        "<str:object_id>/bots/<str:bot_object_id>/leave/",
+        projects_views.BotLeaveProjectView.as_view(),
+        name="bot-leave",
+    ),
+    path(
         "<str:object_id>/bots/<str:bot_object_id>/recordings",
         projects_views.ProjectBotRecordingsView.as_view(),
         name="project-bot-recordings",

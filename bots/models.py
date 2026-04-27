@@ -2601,9 +2601,12 @@ class Credentials(models.Model):
         """Decrypt and return credentials"""
         if not self._encrypted_data:
             return None
-        f = Fernet(settings.CREDENTIALS_ENCRYPTION_KEY)
-        decrypted_data = f.decrypt(bytes(self._encrypted_data))
-        return json.loads(decrypted_data.decode())
+        try:
+            f = Fernet(settings.CREDENTIALS_ENCRYPTION_KEY)
+            decrypted_data = f.decrypt(bytes(self._encrypted_data))
+            return json.loads(decrypted_data.decode())
+        except (InvalidToken, ValueError):
+            return None
 
     def __str__(self):
         return f"{self.project.name} - {self.get_credential_type_display()}"
